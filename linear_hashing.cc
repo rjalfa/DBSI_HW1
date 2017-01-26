@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
-#define MAX_BUCKET_SIZE 2
-#define MAX_BUCKETS_ON_DISK 100
-#define OVERFLOW_START_INDEX 50
+#define MAX_BUCKET_SIZE 10
+#define MAX_BUCKETS_ON_DISK 100000
+#define OVERFLOW_START_INDEX 50000
 using namespace std;
 
 class Bucket
@@ -111,7 +111,6 @@ void LinearHash::insert(const int& x)
 	unsigned int bucket_addr = hash(x,level);
 	if(bucket_addr < nextToSplit) bucket_addr = hash(x,level+1);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
-	cerr << "[INFO] Hash value: " << bucket_addr << endl;
 	//Try Adding to the bucket
 	if(!insert(bucketToAdd,x))
 	{
@@ -122,7 +121,6 @@ void LinearHash::insert(const int& x)
 			cerr << "[ERROR] No overflow buckets available" << endl;
 			return;
 		}
-		else cerr << "[INFO] Overflow bucket added : " << bucketToAdd.getBucketOverflowIndex()<< endl;
 		if(!insert(bucketToAdd,x)) {
 			//No More overflow pages. Can't add.
 			cerr << "[ERROR] Internal error" << endl;
@@ -147,12 +145,12 @@ bool LinearHash::insert(Bucket& bucket,const int& x)
 {
 	// Bucket& bucket = memory->getBucket(bucket_addr);
 	bool inserted = bucket.insertItem(x);
-	bool has_overflow = (bucket.getBucketOverflowIndex() != -1);
-	while(!inserted && has_overflow)
+	int overflow_idx = bucket.getBucketOverflowIndex();
+	while(!inserted && overflow_idx != -1)
 	{
-		Bucket& bucket1 = memory->getBucket(bucket.getBucketOverflowIndex());
+		Bucket& bucket1 = memory->getBucket(overflow_idx);
 		inserted = bucket1.insertItem(x);
-		has_overflow = (bucket1.getBucketOverflowIndex() != -1);
+		overflow_idx = bucket1.getBucketOverflowIndex();
 	}
 	return inserted;
 }
@@ -161,13 +159,13 @@ bool LinearHash::insert(Bucket& bucket,const int& x)
 bool LinearHash::addOverflowBucket(int bucket_addr)
 {
 	Bucket& bucket = memory->getBucket(bucket_addr);
-	int new_bucket_idx = getNewOverflowBucket();
-	if(new_bucket_idx == -1) return false;
 	if(bucket.getBucketOverflowIndex() != -1)
 	{
 		//Already has overflow bucket
 		return addOverflowBucket(bucket.getBucketOverflowIndex());
 	}
+	int new_bucket_idx = getNewOverflowBucket();
+	if(new_bucket_idx == -1) return false;
 	overflowBucketsUsed[new_bucket_idx - overflow_start_idx] = true;
 	bucket.setBucketOverflowIndex(new_bucket_idx);
 	return true;
@@ -195,12 +193,11 @@ void LinearHash::recycleBucket(int bucket_addr)
 int LinearHash::getNewOverflowBucket()
 {
 	int new_idx = overflow_start_idx;
-	while(overflowBucketsUsed[new_idx-overflow_start_idx] && new_idx < MAX_BUCKETS_ON_DISK) 
+	while(overflowBucketsUsed[new_idx-overflow_start_idx] && new_idx < (int)memory->getStorageSize()) 
 	{
-		cerr << "O " << new_idx << endl;
 		new_idx++;
 	}
-	if(new_idx == MAX_BUCKETS_ON_DISK) return -1;
+	if(new_idx == (int)memory->getStorageSize()) return -1;
 	else return new_idx;
 }
 
@@ -230,7 +227,6 @@ void LinearHash::split(int bucket_addr)
 
 	int temp1 = bucket_addr;
 	int temp2 = bucket2_addr;
-	cerr << "[INFO] Splitting bucket in " << bucket_addr << " " << bucket2_addr << endl;
 
 	for(unsigned int i = 0; i < temp.size() ; i++)
 	{
@@ -282,13 +278,20 @@ void LinearHash::display()
 {
 	cout << "Next to Split: " << nextToSplit << endl;
 	cout << "Level: " << level << endl;
-	for(unsigned int i = 0; i < size; i ++)
+	for(unsigned int bucket_addr = 0; bucket_addr < size; bucket_addr ++)
 	{
-		vector<int> t;
-		getBucketData(i,t);
-		cout << "Bucket #" << i <<" : ";
-		for(unsigned int j = 0; j < t.size(); j++) cout << t[j] << " ";
-		cout << endl; 
+		cout << "Bucket Label :{" << bucket_addr << "} -- "; 
+		int t = bucket_addr;
+		do
+		{
+			Bucket& b = memory->getBucket(t);
+			cout << "#(" << t << "): ";
+			for(int i = 0; i < b.size(); i++) {
+				cout << b.getItem(i) << " ";
+			}
+			t = b.getBucketOverflowIndex();
+		} while(t != -1);
+		cout << endl;
 	}
 }
 
@@ -302,16 +305,16 @@ int main()
 	LinearHash lh(disk);
 	
 	int n;
-	cout << "Enter number of entries: ";
+	//cout << "Enter number of entries: ";
 	cin >> n;
 	while(n--)
 	{
 		int x;
-		cout << "Enter record: ";
+		//cout << "Enter record: ";
 		cin >> x;
 		lh.insert(x);
-		lh.display();
+		//lh.display();
 	}
-	
+	lh.display();
 	delete disk;
 }
