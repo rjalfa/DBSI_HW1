@@ -27,3 +27,6 @@
 *.exe
 *.out
 *.app
+
+# Project Specifics
+linear_hashing
