@@ -1,8 +1,8 @@
 #include <iostream>
 #include <vector>
 #define MAX_BUCKET_SIZE 10
-#define MAX_BUCKETS_ON_DISK 100000
-#define OVERFLOW_START_INDEX 50000
+#define MAX_BUCKETS_ON_DISK 1000000
+#define OVERFLOW_START_INDEX 500000
 using namespace std;
 
 class Bucket
@@ -95,13 +95,20 @@ class LinearHash
 	bool getBucketData(vector<int>& v);
 	void rehash(int item = -1);
 	void getBucketData(int bucket_addr, vector<int>& v);
+	
 	public:
+		
 		LinearHash(Disk* mem) : numRecords(0), nextToSplit(0), size(2), level(1), bucket_size(MAX_BUCKET_SIZE), overflow_start_idx(OVERFLOW_START_INDEX)
 		{
 			this->memory = mem;
 			overflowBucketsUsed = vector<bool>(memory->getStorageSize() - overflow_start_idx,false);
 		}
+		
 		void insert(const int& x);
+		bool search(const int& x);
+		unsigned int N();
+		unsigned int B();
+		unsigned int b();
 		void display();
 };
 
@@ -140,6 +147,11 @@ void LinearHash::insert(const int& x)
 	}
 	//Inserted Successfully
 	numRecords++;
+}
+
+bool LinearHash::search(const int& x)
+{
+	return x == 1;
 }
 
 //Insert record into bucket
@@ -297,6 +309,23 @@ void LinearHash::display()
 	}
 }
 
+unsigned int LinearHash::N()
+{
+	return numRecords;
+}
+
+unsigned int LinearHash::B()
+{
+	unsigned int overflow_buckets = 0;
+	for(unsigned int i = 0; i < overflowBucketsUsed.size() ; i ++) overflow_buckets += overflowBucketsUsed[i];
+	return size + overflow_buckets;
+}
+
+unsigned int LinearHash::b()
+{
+	return bucket_size;
+}
+
 int main()
 {
 	//Initialize a disk and connect hash to disk
@@ -307,16 +336,14 @@ int main()
 	LinearHash lh(disk);
 	
 	int n;
-	//cout << "Enter number of entries: ";
 	cin >> n;
 	while(n--)
 	{
 		int x;
-		//cout << "Enter record: ";
 		cin >> x;
 		lh.insert(x);
-		//lh.display();
 	}
 	lh.display();
+	cerr << "N : " << lh.N() << "\nB: " << lh.B() << "\nb: " << lh.b() << endl;
 	delete disk;
 }
