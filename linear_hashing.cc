@@ -33,39 +33,19 @@ class Bucket
 			}
 			return false;
 		}
-		void setBucketOverflowIndex(int a)
-		{
-			this->bucketOverflowIndex = a;
-		}
-		int getBucketOverflowIndex()
-		{
-			return this->bucketOverflowIndex;
-		}
-		Bucket() : bucketOverflowIndex(-1), bucket_size(MAX_BUCKET_SIZE), numRecords(0)
-		{
-			storage = new int[MAX_BUCKET_SIZE];
-		}
-		~Bucket()
-		{
-			delete[] storage;
-		}
+		
+		void setBucketOverflowIndex(int a) { this->bucketOverflowIndex = a; }
+		int getBucketOverflowIndex() { return this->bucketOverflowIndex; }
+		Bucket() : bucketOverflowIndex(-1), bucket_size(MAX_BUCKET_SIZE), numRecords(0) { storage = new int[MAX_BUCKET_SIZE]; }
+		~Bucket() { delete[] storage; }
+		int size() { return this->numRecords; }
+		bool isFull() { return this->numRecords == bucket_size; }
+		void emptyBucket() {numRecords = 0;bucketOverflowIndex = -1;}
+		
 		Bucket(const Bucket& b) : bucketOverflowIndex(b.bucketOverflowIndex),  bucket_size(MAX_BUCKET_SIZE), numRecords(b.numRecords)
 		{
 			storage = new int[MAX_BUCKET_SIZE];
 			for(int i = 0; i < numRecords; i ++ ) storage[i] = b.storage[i];
-		}
-		void emptyBucket()
-		{
-			numRecords = 0;
-			bucketOverflowIndex = -1;
-		}
-		int size()
-		{
-			return this->numRecords;
-		}
-		bool isFull()
-		{
-			return this->numRecords == bucket_size; 
 		}
 };
 
@@ -215,7 +195,11 @@ void LinearHash::recycleBucket(int bucket_addr)
 int LinearHash::getNewOverflowBucket()
 {
 	int new_idx = overflow_start_idx;
-	while(overflowBucketsUsed[new_idx-overflow_start_idx] && new_idx < MAX_BUCKETS_ON_DISK) new_idx++;
+	while(overflowBucketsUsed[new_idx-overflow_start_idx] && new_idx < MAX_BUCKETS_ON_DISK) 
+	{
+		cerr << "O " << new_idx << endl;
+		new_idx++;
+	}
 	if(new_idx == MAX_BUCKETS_ON_DISK) return -1;
 	else return new_idx;
 }
@@ -328,4 +312,6 @@ int main()
 		lh.insert(x);
 		lh.display();
 	}
+	
+	delete disk;
 }
