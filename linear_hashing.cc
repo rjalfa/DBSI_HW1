@@ -138,6 +138,8 @@ void LinearHash::insert(const int& x)
 			level++;
 		}
 	}
+	//Inserted Successfully
+	numRecords++;
 }
 
 //Insert record into bucket
