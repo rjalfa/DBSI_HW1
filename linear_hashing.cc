@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <cstdlib>
 #define MAX_BUCKET_SIZE 10
 #define MAX_BUCKETS_ON_DISK 1000000
 #define OVERFLOW_START_INDEX 500000
@@ -34,6 +35,12 @@ class Bucket
 			return false;
 		}
 		
+		bool search(int a)
+		{
+			for(int i = 0; i < numRecords; i ++) if(a == storage[i]) return true;
+			return false;
+		}
+
 		void setBucketOverflowIndex(int a) { this->bucketOverflowIndex = a; }
 		int getBucketOverflowIndex() { return this->bucketOverflowIndex; }
 		Bucket() : bucketOverflowIndex(-1), bucket_size(MAX_BUCKET_SIZE), numRecords(0) { storage = new int[MAX_BUCKET_SIZE]; }
@@ -80,6 +87,7 @@ class LinearHash
 	unsigned int size;
 	unsigned int level;
 	unsigned int bucket_size;
+	unsigned int numOverflowUsed;
 	unsigned int overflow_start_idx;
 	vector<bool> overflowBucketsUsed;
 	Disk* memory;
@@ -98,7 +106,7 @@ class LinearHash
 	
 	public:
 		
-		LinearHash(Disk* mem) : numRecords(0), nextToSplit(0), size(2), level(1), bucket_size(MAX_BUCKET_SIZE), overflow_start_idx(OVERFLOW_START_INDEX)
+		LinearHash(Disk* mem) : numRecords(0), nextToSplit(0), size(2), level(1), bucket_size(MAX_BUCKET_SIZE), numOverflowUsed(0),overflow_start_idx(OVERFLOW_START_INDEX)
 		{
 			this->memory = mem;
 			overflowBucketsUsed = vector<bool>(memory->getStorageSize() - overflow_start_idx,false);
@@ -151,7 +159,19 @@ void LinearHash::insert(const int& x)
 
 bool LinearHash::search(const int& x)
 {
-	return x == 1;
+	unsigned int bucket_addr = hash(x,level);
+	if(bucket_addr < nextToSplit) bucket_addr = hash(x,level+1);
+	//Search in bucket and overflows [if there]
+	bool found = false;
+	int overflow_idx = bucket_addr;
+	while(!found && overflow_idx != -1)
+	{
+		Bucket& b = memory->getBucket(overflow_idx);
+		found = b.search(x);
+		overflow_idx = b.getBucketOverflowIndex();
+	}
+	if(found) return true;
+	return false;
 }
 
 //Insert record into bucket
@@ -181,6 +201,7 @@ bool LinearHash::addOverflowBucket(int bucket_addr)
 	int new_bucket_idx = getNewOverflowBucket();
 	if(new_bucket_idx == -1) return false;
 	overflowBucketsUsed[new_bucket_idx - overflow_start_idx] = true;
+	numOverflowUsed++;
 	bucket.setBucketOverflowIndex(new_bucket_idx);
 	return true;
 }
@@ -196,6 +217,7 @@ void LinearHash::recycleBucket(int bucket_addr)
 	{
 		recycleBucket(overflow_idx);
 		overflowBucketsUsed[overflow_idx-overflow_start_idx] = false;
+		numOverflowUsed--;
 	}
 	bucket.setBucketOverflowIndex(-1);
 
@@ -316,9 +338,7 @@ unsigned int LinearHash::N()
 
 unsigned int LinearHash::B()
 {
-	unsigned int overflow_buckets = 0;
-	for(unsigned int i = 0; i < overflowBucketsUsed.size() ; i ++) overflow_buckets += overflowBucketsUsed[i];
-	return size + overflow_buckets;
+	return size + numOverflowUsed;
 }
 
 unsigned int LinearHash::b()
@@ -337,13 +357,23 @@ int main()
 	
 	int n;
 	cin >> n;
-	while(n--)
+	int cnt = 0;
+	int s = 0;
+	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
 		lh.insert(x);
+		cnt ++ ;
+		if(cnt == 5000) 
+		{
+			x = rand() % n + 1;
+			s += lh.search(x);
+			cnt = 0;
+		}
+		cout << lh.N() / (1.0*lh.B() * lh.b()) << endl;
 	}
-	lh.display();
-	cerr << "N : " << lh.N() << "\nB: " << lh.B() << "\nb: " << lh.b() << endl;
+	//lh.display();
+	cerr << "N : " << lh.N() << "\nB: " << lh.B() << "\nb: " << lh.b() << "\ns : "<< s << endl;
 	delete disk;
 }

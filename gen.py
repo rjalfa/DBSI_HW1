@@ -1,10 +1,10 @@
 from random import randint
 from sys import argv
-N = 1000
-if len(argv) >= 1:
-	N = int(argv[1])
+N = 100000
 
 print N
-for _ in xrange(N):
-	print randint(1,N+1)
+for _ in xrange(70000):
+	print randint(700000,800000)
+for _ in xrange(30000):
+	print randint(0,700000)
 
