@@ -3,7 +3,7 @@
 #include <queue>
 #include <cstdlib>
 #include <climits>
-#define MAX_BUCKET_SIZE 10
+#define MAX_BUCKET_SIZE 2
 #define MAX_BUCKETS_ON_DISK 1000000
 #define MAX_BUCKETS_ON_RAM 1024
 #define OVERFLOW_START_INDEX 500000
@@ -231,7 +231,7 @@ class ExtendibleHash
 	bool insert(Bucket&,const int&);
 	void recycleBucket(int bucket_addr);
 	void getBucketData(int bucket_addr, vector<int>& v);
-	bool forceInsert(Bucket&, const int&);	
+	bool forceInsert(Bucket&, const int&,int);	
 	public:
 		
 		ExtendibleHash(Disk* mem, RAM* ram) : numRecords(0), level(1), bucket_size(MAX_BUCKET_SIZE)
@@ -262,40 +262,38 @@ void ExtendibleHash::insert(const int& x)
 		{
 			this->level += 1;
 			this->directory->doubleDirectory();
-			this->insert(x);
 		}
-		else
+		//Smaller level than global now
+		bucketToAdd.setDepth(bucketToAdd.getDepth() + 1);
+		bucketToAdd.setIndex(bucketToAdd.getIndex() * 2);
+		vector<int> data;
+		getBucketData(bucket_addr,data);
+		data.push_back(x);
+	
+		recycleBucket(bucket_addr);
+		
+		//Get new Bucket to add;
+		int buck_index = memory->getNewBucket();
+		Bucket& newBucket = memory->getBucket(buck_index);
+		newBucket.setDepth(bucketToAdd.getDepth());
+		newBucket.setIndex(bucketToAdd.getIndex() * 2 + 1);
+		
+		//Fix Directory pointers
+		int y = newBucket.getIndex();
+		for(int i = 0; i < (1 << (this->level - newBucket.getDepth())); i ++)
 		{
-			//Smaller level than global
-			bucketToAdd.setDepth(bucketToAdd.getDepth() + 1);
-			bucketToAdd.setIndex(bucketToAdd.getIndex() * 2);
-			vector<int> data;
-			getBucketData(bucket_addr,data);
-			data.push_back(x);
-			
-			recycleBucket(bucket_addr);
-			
-			//Get new Bucket to add;
-			int buck_index = memory->getNewBucket();
-			Bucket& newBucket = memory->getBucket(buck_index);
-			newBucket.setDepth(bucketToAdd.getDepth() + 1);
-			newBucket.setIndex(bucketToAdd.getIndex() * 2);
-			
-			//Fix Directory pointers
-			int y = newBucket.getIndex();
-			for(int i = 0; i < (1 << (this->level - newBucket.getDepth())); i ++)
-			{
-				directory->setEntry((y << (this->level - newBucket.getDepth())) + i, buck_index);
-			}
+			directory->setEntry((y << (this->level - newBucket.getDepth())) + i, buck_index);
+		}
+		
+		//display();
 
-			//Rehash
-			for(int i = 0; i < (int)data.size(); i ++)
-			{
-				unsigned int _hash_value = hash(data[i],this->level);
-				unsigned int p_bucket_addr = directory->getEntry(_hash_value);
-				if(p_bucket_addr == bucket_addr) forceInsert(bucketToAdd,data[i]);
-				else forceInsert(newBucket,data[i]);
-			}
+		//Rehash
+		for(int i = 0; i < (int)data.size(); i ++)
+		{
+			unsigned int _hash_value = hash(data[i],this->level);
+			unsigned int p_bucket_addr = directory->getEntry(_hash_value);
+			if(p_bucket_addr == bucket_addr) forceInsert(bucketToAdd,data[i],p_bucket_addr);
+			else forceInsert(newBucket,data[i],p_bucket_addr);
 		}
 	}
 	//Inserted Successfully
@@ -334,11 +332,11 @@ bool ExtendibleHash::insert(Bucket& bucket,const int& x)
 	return inserted;
 }
 
-bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x)
+bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x, int bucket_addr)
 {
 	bool inserted = bucket.insertItem(x);
 	int overflow_idx = bucket.getBucketOverflowIndex();
-	int prev_overflow_idx = INT_MAX;
+	int prev_overflow_idx = bucket_addr;
 	while(!inserted && overflow_idx != -1)
 	{
 		Bucket& bucket1 = memory->getBucket(overflow_idx);
@@ -351,7 +349,7 @@ bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x)
 	{
 		int new_bucket_idx = memory->getNewBucket();
 		if(new_bucket_idx == -1) return false;
-		if(prev_overflow_idx != INT_MAX)
+		if(prev_overflow_idx != bucket_addr)
 		{
 			Bucket& bucket0 = memory->getBucket(prev_overflow_idx);
 			Bucket& bucket1 = memory->getBucket(new_bucket_idx);
@@ -360,6 +358,7 @@ bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x)
 		}
 		else
 		{
+			cout << "Insert to base bucket " << endl;
 			Bucket& bucket1 = memory->getBucket(new_bucket_idx);
 			bucket.setBucketOverflowIndex(new_bucket_idx);
 			inserted = bucket1.insertItem(x);	
@@ -439,6 +438,7 @@ ostream& operator<<(ostream& out, const RAM& ram)
 		int t = ram.getEntry(i);
 		while(t != -1)
 		{
+			out << "[" << t << "]";
 			Bucket& b = (ram.memory)->getBucket(t);
 			out << b << " ";
 			t = b.getBucketOverflowIndex();
@@ -474,6 +474,7 @@ int main()
 	ExtendibleHash eh(disk,ram);
 	
 	int n;
+	cout << "Number of records: ";
 	cin >> n;
 	int cnt = 0;
 	// int s = 0;
@@ -481,6 +482,7 @@ int main()
 	{
 		int x;
 		cin >> x;
+		cout << "Enter Record: ";
 		eh.insert(x);
 		cnt ++ ;
 		eh.display();
