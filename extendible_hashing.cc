@@ -3,7 +3,7 @@
 #include <queue>
 #include <cstdlib>
 #include <climits>
-#define MAX_BUCKET_SIZE 2
+#define MAX_BUCKET_SIZE 70
 #define MAX_BUCKETS_ON_DISK 1000000
 #define MAX_BUCKETS_ON_RAM 1024
 #define OVERFLOW_START_INDEX 500000
@@ -226,7 +226,7 @@ class ExtendibleHash
 	RAM* directory;
 	unsigned int hash(const int& x, int shift)
 	{
-		return x >> (HASH_SHIFT - shift);
+		return x >> (HASH_SHIFT - shift + 1);
 	}
 	bool insert(Bucket&,const int&);
 	void recycleBucket(int bucket_addr);
@@ -250,6 +250,7 @@ class ExtendibleHash
 void ExtendibleHash::insert(const int& x)
 {
 	unsigned int hash_value = hash(x, this->level);
+	cout << "[INFO] Hash Value: " << hash_value << endl;
 	unsigned int bucket_addr = directory->getEntry(hash_value);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
 	//Try Adding to the bucket
@@ -477,7 +478,7 @@ int main()
 	ExtendibleHash eh(disk,ram);
 	
 	int n;
-	cout << "Number of records: ";
+	//cout << "Number of records: ";
 	cin >> n;
 	int cnt = 0;
 	// int s = 0;
@@ -485,7 +486,7 @@ int main()
 	{
 		int x;
 		cin >> x;
-		cout << "Enter Record: ";
+		//cout << "Enter Record: ";
 		eh.insert(x);
 		cnt ++ ;
 		eh.display();
