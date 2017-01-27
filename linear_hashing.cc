@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#define MAX_BUCKET_SIZE 10
+#define MAX_BUCKET_SIZE 2
 #define MAX_BUCKETS_ON_DISK 1000000
 #define OVERFLOW_START_INDEX 500000
 using namespace std;
@@ -60,9 +60,15 @@ class Bucket
 class Disk
 {
 	vector<Bucket> storage;
+	int access_count;
 	public:
+		int getAccessCount()
+		{
+			return access_count;
+		}
 		Disk()
 		{
+			access_count = 0;
 			this->storage = vector<Bucket>(MAX_BUCKETS_ON_DISK);
 		}
 		~Disk()
@@ -71,6 +77,7 @@ class Disk
 		}
 		Bucket& getBucket(int bucket_idx)
 		{
+			access_count ++;
 			return storage[bucket_idx];
 		}
 		unsigned int getStorageSize()
@@ -363,17 +370,20 @@ int main()
 	{
 		int x;
 		cin >> x;
+		int i = disk->getAccessCount();
 		lh.insert(x);
+		cout << "Access Count: " << disk->getAccessCount() - i << endl;
 		cnt ++ ;
-		if(cnt == 5000) 
+		/*if(cnt == 5000) 
 		{
 			x = rand() % n + 1;
 			s += lh.search(x);
 			cnt = 0;
 		}
+		*/
 		cout << lh.N() / (1.0*lh.B() * lh.b()) << endl;
+		lh.display();
 	}
-	//lh.display();
 	cerr << "N : " << lh.N() << "\nB: " << lh.B() << "\nb: " << lh.b() << "\ns : "<< s << endl;
 	delete disk;
 }
