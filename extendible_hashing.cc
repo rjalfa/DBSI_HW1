@@ -345,7 +345,7 @@ bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x, int bucket_addr)
 		overflow_idx = bucket1.getBucketOverflowIndex();
 	}
 	//Add Overflow Bucket if no space
-	if(!inserted && overflow_idx != -1)
+	if(!inserted && overflow_idx == -1)
 	{
 		int new_bucket_idx = memory->getNewBucket();
 		if(new_bucket_idx == -1) return false;
@@ -353,14 +353,17 @@ bool ExtendibleHash::forceInsert(Bucket& bucket, const int& x, int bucket_addr)
 		{
 			Bucket& bucket0 = memory->getBucket(prev_overflow_idx);
 			Bucket& bucket1 = memory->getBucket(new_bucket_idx);
+			bucket1.setIndex(bucket0.getIndex());
+			bucket1.setDepth(bucket0.getDepth());
 			bucket0.setBucketOverflowIndex(new_bucket_idx);
 			inserted = bucket1.insertItem(x);
 		}
 		else
 		{
-			cout << "Insert to base bucket " << endl;
 			Bucket& bucket1 = memory->getBucket(new_bucket_idx);
 			bucket.setBucketOverflowIndex(new_bucket_idx);
+			bucket1.setIndex(bucket.getIndex());
+			bucket1.setDepth(bucket.getDepth());
 			inserted = bucket1.insertItem(x);	
 		}
 	}
@@ -376,7 +379,7 @@ void ExtendibleHash::recycleBucket(int bucket_addr)
 	int overflow_idx = bucket.getBucketOverflowIndex(); 
 	if(overflow_idx != -1)
 	{
-		recycleBucket(bucket_addr);
+		recycleBucket(overflow_idx);
 		memory->recycleBucket(overflow_idx);
 	}
 	bucket.setBucketOverflowIndex(-1);
