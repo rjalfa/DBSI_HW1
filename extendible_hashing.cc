@@ -77,6 +77,8 @@ class Bucket
 			storage = new int[MAX_BUCKET_SIZE];
 			for(int i = 0; i < numRecords; i ++ ) storage[i] = b.storage[i];
 		}
+
+		friend ostream& operator<<(ostream&,const Bucket&);
 };
 
 
@@ -139,7 +141,7 @@ class RAM
 			b0.setDepth(1);
 			b0.setIndex(0);
 			storage[1] = mem->getNewBucket();
-			Bucket& b1 = mem->getBucket(storage[0]);
+			Bucket& b1 = mem->getBucket(storage[1]);
 			b1.setDepth(1);
 			b1.setIndex(1);
 		}
@@ -147,7 +149,7 @@ class RAM
 		{
 			this->storage.clear();
 		}
-		int getEntry(int bucket_idx)
+		int getEntry(int bucket_idx) const
 		{
 			if(bucket_idx >= mem_used_index)
 			{
@@ -210,6 +212,8 @@ class RAM
 			}
 			for(int i = 0; i < this->mem_used_index; i ++) this->setEntry(i,temp_array[i]);
 		}
+
+		friend ostream& operator<<(ostream&,const RAM&);
 };
 
 
@@ -398,6 +402,7 @@ void ExtendibleHash::getBucketData(int bucket_addr, vector<int>& v)
 void ExtendibleHash::display()
 {
 	cout << "Global Depth: " << this->level << endl;
+	cout << "Data: \n" << *directory << endl;
 	// for(unsigned int table_addr = 0; table_addr < directory->getStorageSize(); table_addr ++)
 	// {
 	// 	Bucket &b = directory->getBucket(table_addr);
@@ -415,6 +420,32 @@ void ExtendibleHash::display()
 	// 	} while(t != -1);
 	// 	cout << endl;
 	// }
+}
+
+ostream& operator<<(ostream& out,const Bucket& b)
+{
+	out << "{LD:"<<b.depth<<";idx:"<<b.index<<";ovf:"<<b.bucketOverflowIndex<<" [ ";
+	for(int i = 0; i < b.numRecords; i++) out << b.storage[i] << " ";
+	out << "] }";
+	return out;
+}
+
+ostream& operator<<(ostream& out, const RAM& ram)
+{
+	out << "Directory Size: " << ram.mem_used_index << endl;
+	for(int i = 0; i < ram.mem_used_index; i ++)
+	{
+		out << "INDEX " << i << ":= ";
+		int t = ram.getEntry(i);
+		while(t != -1)
+		{
+			Bucket& b = (ram.memory)->getBucket(t);
+			out << b << " ";
+			t = b.getBucketOverflowIndex();
+		}
+		out << endl;
+	}
+	return out;
 }
 
 unsigned int ExtendibleHash::N()
@@ -445,23 +476,23 @@ int main()
 	int n;
 	cin >> n;
 	int cnt = 0;
-	int s = 0;
+	// int s = 0;
 	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
 		eh.insert(x);
 		cnt ++ ;
-		if(cnt == 5000) 
-		{
-			x = rand() % n + 1;
-			s += eh.search(x);
-			cnt = 0;
-		}
-		cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
+		eh.display();
+		// if(cnt == 5000) 
+		// {
+		// 	x = rand() % n + 1;
+		// 	s += eh.search(x);
+		// 	cnt = 0;
+		// }
+		//cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
 	}
-	//eh.display();
-	cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;
+	//cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;
 	delete disk;
 	delete ram;
 }
