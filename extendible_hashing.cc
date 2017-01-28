@@ -3,18 +3,18 @@
 #include <queue>
 #include <cstdlib>
 #include <climits>
-#define MAX_BUCKET_SIZE 2
+#include <cstdio>
+#define MAX_BUCKET_SIZE 1
 #define MAX_BUCKETS_ON_DISK 1000000
-#define MAX_BUCKETS_ON_RAM 1024
-#define OVERFLOW_START_INDEX 500000
-#define HASH_SHIFT 19
+#define MAX_BUCKETS_ON_RAM 4
+#define HASH_SHIFT 20
 
 using namespace std;
 
 template <class T>
-ostream& operator<< (ostream &out, vector<T> V)
+ostream& operator<< (ostream &out,const vector<T>& V)
 {
-	for(int i=0;i < V.size(); i++)
+	for(int i=0;i < (int)V.size(); i++)
 	{
 		out<<V[i]<<" ";
 	}
@@ -88,7 +88,6 @@ class Bucket
 			storage = new int[MAX_BUCKET_SIZE];
 			for(int i = 0; i < numRecords; i ++ ) storage[i] = b.storage[i];
 		}
-
 		friend ostream& operator<<(ostream&,const Bucket&);
 };
 
@@ -145,6 +144,7 @@ class RAM
 	Disk* memory;
 	vector<int> overflow_buckets;
 	public:
+		int getDirectorySize() {return mem_used_index;}
 		RAM(Disk* mem)
 		{
 			this->memory = mem;
@@ -228,7 +228,7 @@ class RAM
 			}
 			for(int i = 0; i < this->mem_used_index; i ++) this->setEntry(i,temp_array[i]);
 		}
-
+		unsigned int numOverflowBuckets() { return (unsigned int)overflow_buckets.size(); }
 		friend ostream& operator<<(ostream&,const RAM&);
 };
 
@@ -242,7 +242,8 @@ class ExtendibleHash
 	RAM* directory;
 	unsigned int hash(const int& x, int shift)
 	{
-		return x >> (HASH_SHIFT - shift + 1);
+		if(HASH_SHIFT < shift) cerr << "OVERFLOW ERROR\n";
+		return x >> (HASH_SHIFT - shift);
 	}
 	bool insert(Bucket&,const int&);
 	void recycleBucket(int bucket_addr);
@@ -269,14 +270,16 @@ void ExtendibleHash::insert(const int& x)
 	unsigned int bucket_addr = directory->getEntry(hash_value);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
 	//Try Adding to the bucket
-	if(!insert(bucketToAdd,x))
+	if(bucketToAdd.isFull())
 	{
-		//Couldn't insert in bucket or its overflow pages. Need to split/add overflow
+		//Couldn't insert in bucket. Need to split/add overflow
 		//Need to split next pointer.
 		//Add Overflow page and retry insert
 		if(bucketToAdd.getDepth() == (int)this->level)
 		{
 			this->level += 1;
+			cerr << "Splitting Directory while inserting " << x << endl; 
+			// cerr << *directory << endl;
 			this->directory->doubleDirectory();
 		}
 		//Smaller level than global now
@@ -292,7 +295,7 @@ void ExtendibleHash::insert(const int& x)
 		int buck_index = memory->getNewBucket();
 		Bucket& newBucket = memory->getBucket(buck_index);
 		newBucket.setDepth(bucketToAdd.getDepth());
-		newBucket.setIndex(bucketToAdd.getIndex() * 2 + 1);
+		newBucket.setIndex(bucketToAdd.getIndex() + 1);
 		
 		//Fix Directory pointers
 		int y = newBucket.getIndex();
@@ -312,6 +315,7 @@ void ExtendibleHash::insert(const int& x)
 			else forceInsert(newBucket,data[i],p_bucket_addr);
 		}
 	}
+	else bucketToAdd.insertItem(x);
 	//Inserted Successfully
 	numRecords++;
 }
@@ -474,7 +478,7 @@ unsigned int ExtendibleHash::N()
 
 unsigned int ExtendibleHash::B()
 {
-	return (this->memory)->usedBuckets();
+	return (this->memory)->usedBuckets() - (this->directory)->numOverflowBuckets();
 }
 
 unsigned int ExtendibleHash::b()
@@ -504,14 +508,15 @@ int main()
 		// cout << "Enter Record: ";
 		eh.insert(x);
 		cnt ++ ;
-		// eh.display();
+		eh.display();
 		if(cnt == 5000) 
 		{
 			x = rand() % n + 1;
 			s += eh.search(x);
 			cnt = 0;
 		}
-		cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
+		// cout << eh.N() / (1.0*eh.B() * eh.b()) << " " << ram->getDirectorySize() << endl;
+		// getchar();
 	}
 	cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;
 	delete disk;
