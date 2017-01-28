@@ -30,21 +30,25 @@ Common Functions to Hash(s):
 1. insert(int a): Inserts the value a in the hash table
 2. display(): Displays the whole hash table
 3. search(int a): Checks whether the value a  is in the hash table or not
+4. hash(int x, int level) : Returns the hash value of x, which in case of LH is level LSB bits and in case of EH is level MSB bits of x (x is padded to 20 bits in this case)
 
 Specifics:
-LinearHash:
+
+ExtendibleHash:
 The Linear Hash has the following features.
-1. insert(Bucket, int a): Tries to insert the value a in the Bucket or some overflow bucket of Bucket.
-2. get# DBSI_HW1
+bool insert(Bucket&,const int&) : Try to insert the value a in the bucket or ay overflow bucket of Bucket.
+void recycleBucket(int bucket_addr) : Recycles the bucket.
+int getBucketData(int bucket_addr, vector<int>& v): Gets data of bucket and overflows.
+bool forceInsert(Bucket&, const int&,int): Inserts the value in bucket or overflow. May insert a new overflow.
 
-The code is organized in 2 files. The major classes for the project are:
-1. Bucket [Represents buckets on the disk]  
-2. Disk [Represents Disk of Buckets]  
-3. RAM [In Extendible Hashing, represents the RAM directory]  
-4. ExtendibleHash [The Extendible hash class and functions]  
-5. LinearHash [The LinearHash Class and functions]  
+LinearHash:
+* int split(int bucket_idx) : Split the bucket at bucket_idx according to the rules of linear hashing.
+* bool insert(Bucket&,const int&) : Try to insert the value a in the Bucket or any overflow bucket of Bucket.
+* int getNewOverflowBucket() : Return a new unused overflow bucket
+* bool addOverflowBucket(int bucket_addr) : Add a new overflow bucket to bucket_addr
+* void recycleBucket(int bucket_addr) : Recycle the bucket by removing the data and overflow buckets of the bucket_addr. 
+* int getBucketData(int bucket_addr, vector<int>& v): Get the bucket data (from the bucket and the overflows).
 
-Bucket:
-1. setItem(int a, int pos) - Sets the data entry pos of bucket to a
-2. getItem(int pos) - Returns the data entry pos
-3. insertItem(int a) - Inserts the data 
+Some salient features and assumptions:
+1. The code has been tested on datasets that have been provided in the submission. The limits and constants set in the code are for comfortably fitting the data of the order same as those in the datasets. But due to the certain characteristics of the individual hash functions, there can be cases where the code may run out of memory or crash. These cases are far from naturally generated ones, and it is assumed that such caes won't be input in the program.
+2. The Linear hash has half of the hard disk 
