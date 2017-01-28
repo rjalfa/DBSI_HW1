@@ -97,9 +97,11 @@ class Disk
 {
 	vector<Bucket> storage;
 	queue<int> freeBuckets;
+	int access_count;
 	public:
 		Disk()
 		{
+			access_count = 0;
 			this->storage = vector<Bucket>(MAX_BUCKETS_ON_DISK);
 			for(int i = 0; i < MAX_BUCKETS_ON_DISK ; i ++)
 			{
@@ -112,7 +114,12 @@ class Disk
 		}
 		Bucket& getBucket(int bucket_idx)
 		{
+			access_count ++ ;
 			return storage[bucket_idx];
+		}
+		int getAccessCount()
+		{
+			return access_count;
 		}
 		int getNewBucket()
 		{
