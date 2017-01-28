@@ -4,9 +4,9 @@
 #include <cstdlib>
 #include <climits>
 #include <cstdio>
-#define MAX_BUCKET_SIZE 1
+#define MAX_BUCKET_SIZE 10
 #define MAX_BUCKETS_ON_DISK 1000000
-#define MAX_BUCKETS_ON_RAM 4
+#define MAX_BUCKETS_ON_RAM 1024
 #define HASH_SHIFT 20
 
 using namespace std;
@@ -180,7 +180,7 @@ class RAM
 					bucket_idx -= (int)storage.size();
 					int entry_idx = bucket_idx/MAX_BUCKET_SIZE;
 					Bucket& b = memory->getBucket(overflow_buckets[entry_idx]);
-					return b.getItem(bucket_idx - (entry_idx * MAX_BUCKET_SIZE));
+					return b.getItem(bucket_idx % MAX_BUCKET_SIZE);
 				}
 			}
 			
@@ -508,7 +508,7 @@ int main()
 		// cout << "Enter Record: ";
 		eh.insert(x);
 		cnt ++ ;
-		eh.display();
+		// eh.display();
 		if(cnt == 5000) 
 		{
 			x = rand() % n + 1;
