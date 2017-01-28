@@ -3,13 +3,24 @@
 #include <queue>
 #include <cstdlib>
 #include <climits>
-#define MAX_BUCKET_SIZE 70
+#define MAX_BUCKET_SIZE 2
 #define MAX_BUCKETS_ON_DISK 1000000
 #define MAX_BUCKETS_ON_RAM 1024
 #define OVERFLOW_START_INDEX 500000
 #define HASH_SHIFT 19
 
 using namespace std;
+
+template <class T>
+ostream& operator<< (ostream &out, vector<T> V)
+{
+	for(int i=0;i < V.size(); i++)
+	{
+		out<<V[i]<<" ";
+	}
+	out<<endl;
+	return out;
+}
 
 class Bucket
 {
@@ -120,6 +131,10 @@ class Disk
 		{
 			return (unsigned int)storage.size();
 		}
+		unsigned int usedBuckets()
+		{
+			return (unsigned int)(storage.size() - freeBuckets.size());
+		}
 };
 
 
@@ -187,7 +202,8 @@ class RAM
 					entry_idx -= (int)storage.size();
 					int bucket_idx = entry_idx/MAX_BUCKET_SIZE;
 					Bucket& b = memory->getBucket(overflow_buckets[bucket_idx]);
-					return b.setItem(entry_idx - (bucket_idx * MAX_BUCKET_SIZE), a);
+					bool pp = b.insertItem(a);
+					return pp;
 				}
 			}
 		}
@@ -250,7 +266,6 @@ class ExtendibleHash
 void ExtendibleHash::insert(const int& x)
 {
 	unsigned int hash_value = hash(x, this->level);
-	cout << "[INFO] Hash Value: " << hash_value << endl;
 	unsigned int bucket_addr = directory->getEntry(hash_value);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
 	//Try Adding to the bucket
@@ -286,7 +301,7 @@ void ExtendibleHash::insert(const int& x)
 			directory->setEntry((y << (this->level - newBucket.getDepth())) + i, buck_index);
 		}
 		
-		//display();
+		// display();
 
 		//Rehash
 		for(int i = 0; i < (int)data.size(); i ++)
@@ -459,7 +474,7 @@ unsigned int ExtendibleHash::N()
 
 unsigned int ExtendibleHash::B()
 {
-	return 0;
+	return (this->memory)->usedBuckets();
 }
 
 unsigned int ExtendibleHash::b()
@@ -478,27 +493,27 @@ int main()
 	ExtendibleHash eh(disk,ram);
 	
 	int n;
-	//cout << "Number of records: ";
+	// cout << "Number of records: ";
 	cin >> n;
 	int cnt = 0;
-	// int s = 0;
+	int s = 0;
 	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
-		//cout << "Enter Record: ";
+		// cout << "Enter Record: ";
 		eh.insert(x);
 		cnt ++ ;
-		eh.display();
-		// if(cnt == 5000) 
-		// {
-		// 	x = rand() % n + 1;
-		// 	s += eh.search(x);
-		// 	cnt = 0;
-		// }
-		//cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
+		// eh.display();
+		if(cnt == 5000) 
+		{
+			x = rand() % n + 1;
+			s += eh.search(x);
+			cnt = 0;
+		}
+		cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
 	}
-	//cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;
+	cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;
 	delete disk;
 	delete ram;
 }
