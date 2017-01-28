@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <queue>
+#include <cassert>	
 #include <cstdlib>
 #include <climits>
 #include <cstdio>
@@ -39,7 +40,7 @@ class Bucket
 		}
 		int getItem(int pos)
 		{
-			if(pos < 0 || pos >= numRecords) return -1;
+			if(pos < 0 || pos >= bucket_size) return -1;
 			return storage[pos];
 		}
 		int getDepth()
@@ -77,7 +78,7 @@ class Bucket
 
 		void setBucketOverflowIndex(int a) { this->bucketOverflowIndex = a; }
 		int getBucketOverflowIndex() { return this->bucketOverflowIndex; }
-		Bucket() : bucketOverflowIndex(-1), bucket_size(MAX_BUCKET_SIZE), numRecords(0) { storage = new int[MAX_BUCKET_SIZE]; }
+		Bucket() : bucketOverflowIndex(-1), bucket_size(MAX_BUCKET_SIZE), numRecords(0), depth(-1), index(-1) { storage = new int[MAX_BUCKET_SIZE]; }
 		~Bucket() { delete[] storage; }
 		int size() { return this->numRecords; }
 		bool isFull() { return this->numRecords == bucket_size; }
@@ -164,23 +165,23 @@ class RAM
 		{
 			this->storage.clear();
 		}
-		int getEntry(int bucket_idx) const
+		int getEntry(int entry_idx) const
 		{
-			if(bucket_idx >= mem_used_index)
+			if(entry_idx >= mem_used_index)
 			{
 				return -1;
 			}
 			else{
-				if(bucket_idx < (int)storage.size())
+				if(entry_idx < (int)storage.size())
 				{
-					return storage[bucket_idx];		
+					return storage[entry_idx];		
 				}
 				else
 				{
-					bucket_idx -= (int)storage.size();
-					int entry_idx = bucket_idx/MAX_BUCKET_SIZE;
-					Bucket& b = memory->getBucket(overflow_buckets[entry_idx]);
-					return b.getItem(bucket_idx % MAX_BUCKET_SIZE);
+					entry_idx -= (int)storage.size();
+					int bucket_idx = entry_idx/MAX_BUCKET_SIZE;
+					Bucket& b = memory->getBucket(overflow_buckets[bucket_idx]);
+					return b.getItem(entry_idx % MAX_BUCKET_SIZE);
 				}
 			}
 			
@@ -202,7 +203,7 @@ class RAM
 					entry_idx -= (int)storage.size();
 					int bucket_idx = entry_idx/MAX_BUCKET_SIZE;
 					Bucket& b = memory->getBucket(overflow_buckets[bucket_idx]);
-					bool pp = b.insertItem(a);
+					bool pp = b.setItem(a, entry_idx % MAX_BUCKET_SIZE);
 					return pp;
 				}
 			}
@@ -217,16 +218,28 @@ class RAM
 			int extra_buckets = (this->mem_used_index - (int)storage.size()) - ((int)(this->overflow_buckets.size()) * MAX_BUCKET_SIZE);
 			while(extra_buckets > 0)
 			{
-				overflow_buckets.push_back(memory->getNewBucket());
+				int pt = memory->getNewBucket();
+				overflow_buckets.push_back(pt);
+				if(extra_buckets >= MAX_BUCKET_SIZE)
+				{
+					Bucket& b = memory->getBucket(pt);
+					for(int i = 0; i < MAX_BUCKET_SIZE; i ++) b.insertItem(-1); 
+				}
+				else
+				{
+					Bucket& b = memory->getBucket(pt);
+					for(int i = 0; i < extra_buckets; i ++) b.insertItem(-1); 
+				}
 				extra_buckets -= MAX_BUCKET_SIZE;
 			}
+
 			vector<int> temp_array(this->mem_used_index);
 			for(int i = 0; i < this->mem_used_index/2; i ++)
 			{	
 				temp_array[2*i] = this->getEntry(i);
 				temp_array[2*i+1] = this->getEntry(i);
 			}
-			for(int i = 0; i < this->mem_used_index; i ++) this->setEntry(i,temp_array[i]);
+			for(int i = 0; i < this->mem_used_index; i ++) assert(this->setEntry(i,temp_array[i]));
 		}
 		unsigned int numOverflowBuckets() { return (unsigned int)overflow_buckets.size(); }
 		friend ostream& operator<<(ostream&,const RAM&);
@@ -278,18 +291,16 @@ void ExtendibleHash::insert(const int& x)
 		if(bucketToAdd.getDepth() == (int)this->level)
 		{
 			this->level += 1;
-			cerr << "Splitting Directory while inserting " << x << endl; 
-			// cerr << *directory << endl;
 			this->directory->doubleDirectory();
 		}
 		//Smaller level than global now
-		bucketToAdd.setDepth(bucketToAdd.getDepth() + 1);
-		bucketToAdd.setIndex(bucketToAdd.getIndex() * 2);
 		vector<int> data;
 		getBucketData(bucket_addr,data);
 		data.push_back(x);
 	
 		recycleBucket(bucket_addr);
+		bucketToAdd.setDepth(bucketToAdd.getDepth() + 1);
+		bucketToAdd.setIndex(bucketToAdd.getIndex() * 2);
 		
 		//Get new Bucket to add;
 		int buck_index = memory->getNewBucket();
@@ -304,8 +315,6 @@ void ExtendibleHash::insert(const int& x)
 			directory->setEntry((y << (this->level - newBucket.getDepth())) + i, buck_index);
 		}
 		
-		// display();
-
 		//Rehash
 		for(int i = 0; i < (int)data.size(); i ++)
 		{
@@ -425,23 +434,6 @@ void ExtendibleHash::display()
 {
 	cout << "Global Depth: " << this->level << endl;
 	cout << "Data: \n" << *directory << endl;
-	// for(unsigned int table_addr = 0; table_addr < directory->getStorageSize(); table_addr ++)
-	// {
-	// 	Bucket &b = directory->getBucket(table_addr);
-	// 	cout << "Bucket Label :{ " << directory->getBucket(table_addr) << "} Depth: " << directory->getBucket(table_addr)
-	// 	cout << "Bucket Label :{" << bucket_addr << "} -- "; 
-	// 	int t = bucket_addr;
-	// 	do
-	// 	{
-	// 		Bucket& b = memory->getBucket(t);
-	// 		cout << "#(" << t << "): ";
-	// 		for(int i = 0; i < b.size(); i++) {
-	// 			cout << b.getItem(i) << " ";
-	// 		}
-	// 		t = b.getBucketOverflowIndex();
-	// 	} while(t != -1);
-	// 	cout << endl;
-	// }
 }
 
 ostream& operator<<(ostream& out,const Bucket& b)
