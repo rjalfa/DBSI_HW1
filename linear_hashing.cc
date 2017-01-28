@@ -103,14 +103,14 @@ class LinearHash
 	{
 		return x % (1 << l);
 	}
-	void split(int bucket_idx);
+	int split(int bucket_idx);
 	bool insert(Bucket&,const int&);
 	int getNewOverflowBucket();
 	bool addOverflowBucket(int bucket_addr);
 	void recycleBucket(int bucket_addr);
-	bool getBucketData(vector<int>& v);
+	void getBucketData(vector<int>& v);
 	void rehash(int item = -1);
-	void getBucketData(int bucket_addr, vector<int>& v);
+	int getBucketData(int bucket_addr, vector<int>& v);
 	
 	public:
 		
@@ -120,7 +120,7 @@ class LinearHash
 			overflowBucketsUsed = vector<bool>(memory->getStorageSize() - overflow_start_idx,false);
 		}
 		
-		void insert(const int& x);
+		int insert(const int& x);
 		bool search(const int& x);
 		unsigned int N();
 		unsigned int B();
@@ -128,9 +128,10 @@ class LinearHash
 		void display();
 };
 
-void LinearHash::insert(const int& x)
+int LinearHash::insert(const int& x)
 {
 	//Get the bucket address to insert
+	int c = 0;
 	unsigned int bucket_addr = hash(x,level);
 	if(bucket_addr < nextToSplit) bucket_addr = hash(x,level+1);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
@@ -142,16 +143,16 @@ void LinearHash::insert(const int& x)
 		//Add Overflow page and retry insert
 		if(!addOverflowBucket(bucket_addr)) {
 			cerr << "[ERROR] No overflow buckets available" << endl;
-			return;
+			return 0;
 		}
 		if(!insert(bucketToAdd,x)) {
 			//No More overflow pages. Can't add.
 			cerr << "[ERROR] Internal error" << endl;
-			return;
+			return 0;
 		}
 
 		//Split the N bucket and rehash entries.
-		split(nextToSplit);
+		c = split(nextToSplit);
 
 		nextToSplit++;
 
@@ -167,6 +168,7 @@ void LinearHash::insert(const int& x)
 	}
 	//Inserted Successfully
 	numRecords++;
+	return c;
 }
 
 bool LinearHash::search(const int& x)
@@ -249,24 +251,28 @@ int LinearHash::getNewOverflowBucket()
 	else return new_idx;
 }
 
-void LinearHash::getBucketData(int bucket_addr, vector<int>& v)
+int LinearHash::getBucketData(int bucket_addr, vector<int>& v)
 {
-	if(bucket_addr == -1) return;
+	int a = 0;
+	if(bucket_addr == -1) return 0;
 	do
 	{
 		Bucket& b = memory->getBucket(bucket_addr);
 		for(int i = 0; i < b.size(); i++) {
 			v.push_back(b.getItem(i));
 		}
+		a ++ ;
 		bucket_addr = b.getBucketOverflowIndex();
 	} while(bucket_addr != -1);
+	return a;
 }
 
-void LinearHash::split(int bucket_addr)
+int LinearHash::split(int bucket_addr)
 {
 	vector<int> temp;
+	int cost = 0;
 	// Bucket& bucket = memory->getBucket(bucket_addr);
-	getBucketData(bucket_addr,temp);
+	cost += getBucketData(bucket_addr,temp);
 	recycleBucket(bucket_addr);
 
 	unsigned int bucket2_addr = bucket_addr + (1 << level);
@@ -275,7 +281,7 @@ void LinearHash::split(int bucket_addr)
 
 	int temp1 = bucket_addr;
 	int temp2 = bucket2_addr;
-
+	cost += 2;
 	for(unsigned int i = 0; i < temp.size() ; i++)
 	{
 		if(hash(temp[i],level+1) == (unsigned int)bucket_addr) 
@@ -290,10 +296,11 @@ void LinearHash::split(int bucket_addr)
 					{
 						//No overflow buckets available
 						cerr << "[ERROR] No overflow buckets available" << endl;
-						return;
+						return cost;
 					}	
 					temp1 = bucket.getBucketOverflowIndex();
 				}
+				cost ++;
 				// bucket = memory->getBucket(bucket.getBucketOverflowIndex());
 			}
 			insert(bucket, temp[i]);
@@ -310,15 +317,17 @@ void LinearHash::split(int bucket_addr)
 					{
 						//No overflow buckets available
 						cerr << "[ERROR] No overflow buckets available" << endl;
-						return;
+						return cost;
 					}	
 					temp2 = bucket.getBucketOverflowIndex();
 				}
+				cost++;
 				// bucket = memory->getBucket(bucket.getBucketOverflowIndex());
 			}
 			insert(bucket, temp[i]);
 		}
 	}
+	return cost;
 	//data[nextToSplit].clear();
 }
 
@@ -362,8 +371,9 @@ vector<int> data;
 
 int main(int argc, char** argv)
 {
-	srand(time(0));
+	srand((unsigned int)time(0));
 	//Initialize a disk and connect hash to disk
+	if(argc < 2) exit(1);
 	MAX_BUCKET_SIZE = atoi(argv[1]);
 	Disk* disk = new Disk();
 	cerr << "[INFO] Initialized Disk" << endl;
@@ -374,14 +384,13 @@ int main(int argc, char** argv)
 	cin >> n;
 	int cnt = 0;
 	int s = 0;
-	float till_here = 0;
+	float till_here;
 	long long cumsum = 0;
 	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
-		int i = disk->getAccessCount();
-		lh.insert(x);
+		cout << lh.insert(x) << endl;
 		data.push_back(x);
 		// cout << "Access Count: " << disk->getAccessCount() - i << endl;
 		cnt ++ ;
@@ -396,9 +405,9 @@ int main(int argc, char** argv)
 				if(cs)
 				{
 					cumsum += (after - before);
-					till_here = (float) (cumsum) / (1.0 * s);
+					till_here = (float) (cumsum) / (1.0f * (float)s);
 				}
-				cout << till_here << endl;
+				//cout << till_here << endl;
 			}
 			cnt = 0;
 		}
