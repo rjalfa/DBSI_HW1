@@ -1,7 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
-#define MAX_BUCKET_SIZE 2
+#include <ctime>
+int MAX_BUCKET_SIZE = 70;
 #define MAX_BUCKETS_ON_DISK 1000000
 #define OVERFLOW_START_INDEX 500000
 using namespace std;
@@ -134,7 +135,7 @@ void LinearHash::insert(const int& x)
 	if(bucket_addr < nextToSplit) bucket_addr = hash(x,level+1);
 	Bucket& bucketToAdd = memory->getBucket(bucket_addr);
 	//Try Adding to the bucket
-	if(!insert(bucketToAdd,x))
+	if(bucketToAdd.isFull())
 	{
 		//Couldn't insert in bucket or its overflow pages. Need to add a new overflow page
 		//Need to split next pointer.
@@ -159,6 +160,10 @@ void LinearHash::insert(const int& x)
 			nextToSplit = 0;
 			level++;
 		}
+	}
+	else
+	{
+		this->insert(bucketToAdd, x);
 	}
 	//Inserted Successfully
 	numRecords++;
@@ -353,10 +358,13 @@ unsigned int LinearHash::b()
 	return bucket_size;
 }
 
-int main()
+vector<int> data;
+
+int main(int argc, char** argv)
 {
+	srand(time(0));
 	//Initialize a disk and connect hash to disk
-	
+	MAX_BUCKET_SIZE = atoi(argv[1]);
 	Disk* disk = new Disk();
 	cerr << "[INFO] Initialized Disk" << endl;
 	
@@ -366,23 +374,38 @@ int main()
 	cin >> n;
 	int cnt = 0;
 	int s = 0;
+	float till_here = 0;
+	long long cumsum = 0;
 	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
 		int i = disk->getAccessCount();
 		lh.insert(x);
-		cout << "Access Count: " << disk->getAccessCount() - i << endl;
+		data.push_back(x);
+		// cout << "Access Count: " << disk->getAccessCount() - i << endl;
 		cnt ++ ;
-		/*if(cnt == 5000) 
+		if(cnt == 5000) 
 		{
-			x = rand() % n + 1;
-			s += lh.search(x);
+			for(int ii=0;ii<50;ii++){
+				x = data[rand() % data.size()];
+				int before = disk->getAccessCount();
+				int cs = lh.search(x);
+				s += cs;	
+				int after = disk->getAccessCount();
+				if(cs)
+				{
+					cumsum += (after - before);
+					till_here = (float) (cumsum) / (1.0 * s);
+				}
+				cout << till_here << endl;
+			}
 			cnt = 0;
 		}
-		*/
-		cout << lh.N() / (1.0*lh.B() * lh.b()) << endl;
-		lh.display();
+		
+		// cout << lh.N() / (1.0*lh.B() * lh.b()) << endl;
+
+		// lh.display();
 	}
 	cerr << "N : " << lh.N() << "\nB: " << lh.B() << "\nb: " << lh.b() << "\ns : "<< s << endl;
 	delete disk;

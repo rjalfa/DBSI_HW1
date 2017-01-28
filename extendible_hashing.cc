@@ -4,8 +4,10 @@
 #include <cassert>	
 #include <cstdlib>
 #include <climits>
+
+#include <ctime>
 #include <cstdio>
-#define MAX_BUCKET_SIZE 10
+int MAX_BUCKET_SIZE = 70;
 #define MAX_BUCKETS_ON_DISK 1000000
 #define MAX_BUCKETS_ON_RAM 1024
 #define HASH_SHIFT 20
@@ -485,10 +487,13 @@ unsigned int ExtendibleHash::b()
 	return bucket_size;
 }
 
-int main()
+vector<int> data;
+
+int main(int argc, char** argv)
 {
+	srand(time(0));
 	//Initialize a disk and connect hash to disk
-	
+	MAX_BUCKET_SIZE = atoi(argv[1]);
 	Disk* disk = new Disk();
 	RAM* ram = new RAM(disk);
 	cerr << "[INFO] Initialized Disk" << endl;
@@ -500,21 +505,35 @@ int main()
 	cin >> n;
 	int cnt = 0;
 	int s = 0;
+	float till_here = 0;
+	long long cumsum = 0;
 	for(int it = 0; it < n ; it++)
 	{
 		int x;
 		cin >> x;
 		// cout << "Enter Record: ";
 		eh.insert(x);
+		data.push_back(x);
 		cnt ++ ;
 		// eh.display();
 		if(cnt == 5000) 
 		{
-			x = rand() % n + 1;
-			s += eh.search(x);
+			for(int ii=0;ii<50;ii++){
+				x = data[rand() % data.size()];
+				int before = disk->getAccessCount();
+				int cs = eh.search(x);
+				s += cs;	
+				int after = disk->getAccessCount();
+				if(cs)
+				{
+					cumsum += (after - before);
+					till_here = (float) (cumsum) / (1.0 * s);
+				}
+				cout << till_here << endl;
+			}
 			cnt = 0;
 		}
-		// cout << eh.N() / (1.0*eh.B() * eh.b()) << " " << ram->getDirectorySize() << endl;
+		// cout << eh.N() / (1.0*eh.B() * eh.b()) << endl;
 		// getchar();
 	}
 	cerr << "N : " << eh.N() << "\nB: " << eh.B() << "\nb: " << eh.b() << "\ns : "<< s << endl;

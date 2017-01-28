@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 
-s10 = list(map(float,open("LH10_U_S").readlines()))
-s70 = list(map(float,open("LH70_U_S").readlines()))
-h70 = list(map(float,open("LH70_U_H").readlines()))
-h10 = list(map(float,open("LH10_U_H").readlines()))
+s10 = list(map(float,open("").readlines()))
+s70 = list(map(float,open("").readlines()))
+h70 = list(map(float,open("").readlines()))
+h10 = list(map(float,open("").readlines()))
 cs10, = plt.plot(s10)
 cs70, = plt.plot(s70)
 ch10, = plt.plot(h10)
